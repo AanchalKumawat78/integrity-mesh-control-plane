@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: integrity-mesh-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: integrity-mesh-db
+          property: connectionString
+      - key: INTEGRITY_ALLOWED_ORIGINS
+        sync: false
+      - key: INTEGRITY_AI_PROVIDER
+        value: xai
+      - key: INTEGRITY_AI_BASE_URL
+        value: https://api.x.ai/v1
+      - key: INTEGRITY_XAI_ENGINEERING_MODEL
+        value: grok-code-fast-1
+      - key: INTEGRITY_XAI_RESEARCH_MODEL
+        value: grok-4-1-fast-reasoning
+      - key: INTEGRITY_AI_EMBEDDING_MODEL
+        value: xai-collections
+      - key: XAI_API_KEY
+        sync: false
+databases:
+  - name: integrity-mesh-db
+    plan: free

@@ -272,12 +272,16 @@ function buildCopilotResponse({
 export default function AIRolloutWorkbench({
   dashboard,
   accessRequests,
+  requestAdvice,
 }) {
   const sourceCatalog = buildSourceCatalog(dashboard, accessRequests);
   const [selectedQueryId, setSelectedQueryId] = useState(queryOptions[0].id);
   const [rolloutState, setRolloutState] = useState(() =>
     buildInitialRolloutState(sourceCatalog, loadStoredRolloutState()),
   );
+  const [livePreview, setLivePreview] = useState(null);
+  const [livePreviewPending, setLivePreviewPending] = useState(false);
+  const [livePreviewError, setLivePreviewError] = useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -303,7 +307,7 @@ export default function AIRolloutWorkbench({
     allSourcesReady,
     rolloutState.copilotEnabled,
   );
-  const copilotResponse = buildCopilotResponse({
+  const fallbackCopilotResponse = buildCopilotResponse({
     selectedQueryId,
     allSourcesReady,
     copilotEnabled: rolloutState.copilotEnabled,
@@ -312,6 +316,64 @@ export default function AIRolloutWorkbench({
     dashboard,
     accessRequests,
   });
+  const copilotResponse = livePreview
+    ? {
+      ...fallbackCopilotResponse,
+      title: livePreview.title,
+      body: livePreview.answer,
+      citations: livePreview.citations,
+      tone: livePreview.status === "live" ? "positive" : livePreview.warning ? "warning" : fallbackCopilotResponse.tone,
+      provider: livePreview.provider,
+      model: livePreview.model,
+      status: livePreview.status,
+      warning: livePreview.warning,
+    }
+    : fallbackCopilotResponse;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydratePreview() {
+      if (!requestAdvice) {
+        return;
+      }
+
+      setLivePreviewPending(true);
+      setLivePreviewError("");
+      try {
+        const currentPrompt = queryOptions.find((query) => query.id === selectedQueryId)?.prompt;
+        const response = await requestAdvice({
+          activeView: "engineering",
+          prompt: `${currentPrompt} Current rollout readiness is ${Math.round(rolloutReadiness)}%, indexed source groups are ${readySourceCount}/${totalSourceCount}, and reviewer pilot is ${rolloutState.copilotEnabled ? "enabled" : "held"} in read-only mode.`,
+          conversation: [],
+        });
+        if (!cancelled) {
+          setLivePreview(response);
+        }
+      } catch (requestError) {
+        if (!cancelled) {
+          setLivePreview(null);
+          setLivePreviewError(requestError.message);
+        }
+      } finally {
+        if (!cancelled) {
+          setLivePreviewPending(false);
+        }
+      }
+    }
+
+    void hydratePreview();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    requestAdvice,
+    readySourceCount,
+    rolloutReadiness,
+    rolloutState.copilotEnabled,
+    selectedQueryId,
+    totalSourceCount,
+  ]);
 
   function stageSource(sourceId) {
     setRolloutState((current) => ({
@@ -536,8 +598,18 @@ export default function AIRolloutWorkbench({
           <div className={`ai-rollout-preview-console tone-${copilotResponse.tone}`}>
             <span className="ai-rollout-console-label">Prompt</span>
             <strong>{queryOptions.find((query) => query.id === selectedQueryId)?.prompt}</strong>
+            <span className="ai-rollout-console-label">
+              {livePreviewPending ? "Grok" : "Provider"}
+            </span>
+            {copilotResponse.provider || copilotResponse.model ? (
+              <small>
+                {(copilotResponse.provider || "xAI").toUpperCase()} · {copilotResponse.model || dashboard.ai_readiness.research_assistant_model}
+              </small>
+            ) : null}
             <span className="ai-rollout-console-label">Answer</span>
             <p>{copilotResponse.body}</p>
+            {copilotResponse.warning ? <small>{copilotResponse.warning}</small> : null}
+            {livePreviewError ? <small>{livePreviewError}</small> : null}
           </div>
 
           <div className="ai-rollout-citation-list">

@@ -7,12 +7,14 @@ import SimulationMap from "./SimulationMap";
 import SimulationTrackChart from "./SimulationTrackChart";
 import SolutionsView from "./SolutionsView";
 import ThreatsView from "./ThreatsView";
+import WorkspaceAIAssistant from "./WorkspaceAIAssistant";
 
 const STORAGE_KEY = "integrity-mesh-token";
 const SIMULATION_HISTORY_KEY = "integrity-mesh-simulation-history";
 const MIN_REQUEST_JUSTIFICATION_LENGTH = 24;
 const MIN_REVIEW_NOTE_LENGTH = 12;
 const LIVE_SIMULATION_API_ENABLED = false;
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 const summaryCards = [
   {
@@ -238,6 +240,10 @@ function formatScopeLabel(value) {
 
 function formatCoordinate(value) {
   return `${value.toFixed(2)}°`;
+}
+
+function buildApiUrl(path) {
+  return API_BASE_URL ? `${API_BASE_URL}${path}` : path;
 }
 
 function loadStoredSimulationHistory() {
@@ -1196,7 +1202,7 @@ export default function App() {
       headers.set("Authorization", `Bearer ${authToken}`);
     }
 
-    const response = await fetch(url, { ...options, headers });
+    const response = await fetch(buildApiUrl(url), { ...options, headers });
     if (response.status === 401 && authToken) {
       const authError = new Error("Session expired. Please sign in again.");
       authError.code = 401;
@@ -1337,7 +1343,7 @@ export default function App() {
     simulationStreamRunIdRef.current = runId;
 
     try {
-      const response = await fetch(`/api/simulation/runs/${runId}/stream`, {
+      const response = await fetch(buildApiUrl(`/api/simulation/runs/${runId}/stream`), {
         headers: authToken
           ? {
             Authorization: `Bearer ${authToken}`,
@@ -1665,6 +1671,24 @@ export default function App() {
       setError(requestError.message);
     } finally {
       setSimulationPending(false);
+    }
+  }
+
+  async function requestAIAdvice({ activeView: viewKey, prompt: nextPrompt, conversation = [] }) {
+    try {
+      return await apiFetch("/api/ai/advisory", {
+        method: "POST",
+        body: JSON.stringify({
+          active_view: viewKey,
+          prompt: nextPrompt,
+          conversation,
+        }),
+      });
+    } catch (requestError) {
+      if (requestError.code === 401) {
+        clearSession(requestError.message);
+      }
+      throw requestError;
     }
   }
 
@@ -2135,6 +2159,12 @@ export default function App() {
         ))}
       </section>
 
+      <WorkspaceAIAssistant
+        activeView={activeView}
+        dashboard={dashboard}
+        requestAdvice={requestAIAdvice}
+      />
+
       {showLandscape ? (
         <section className="landscape-grid">
           <article className="policy-card landscape-card">
@@ -2350,6 +2380,7 @@ export default function App() {
         <AIRolloutWorkbench
           dashboard={dashboard}
           accessRequests={accessRequests}
+          requestAdvice={requestAIAdvice}
         />
       ) : null}
 

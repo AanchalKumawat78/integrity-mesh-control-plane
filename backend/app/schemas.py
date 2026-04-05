@@ -451,4 +451,33 @@ class AIReadinessResponse(BaseModel):
     next_step: str
 
 
+class AIConversationTurnRequest(BaseModel):
+    role: str = Field(pattern="^(user|assistant)$")
+    content: str
+
+
+class AIAdvisoryRequest(BaseModel):
+    active_view: str
+    prompt: str
+    conversation: list[AIConversationTurnRequest] = Field(default_factory=list)
+
+
+class AIAdvisoryCitationResponse(BaseModel):
+    id: str
+    title: str
+    detail: str
+
+
+class AIAdvisoryResponse(BaseModel):
+    provider: str
+    model: str
+    status: str
+    warning: str | None
+    title: str
+    answer: str
+    suggested_prompts: list[str]
+    citations: list[AIAdvisoryCitationResponse]
+    generated_at: datetime
+
+
 DashboardResponse.model_rebuild()

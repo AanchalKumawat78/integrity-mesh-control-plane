@@ -15,6 +15,7 @@ from .auth import (
     get_current_user,
     revoke_user_session,
 )
+from .ai_service import generate_ai_advisory_payload
 from .database import Base, SessionLocal, engine, get_db
 from .policies import (
     serialize_user_profile,
@@ -24,6 +25,8 @@ from .policies import (
     user_can_view_audit_logs,
 )
 from .schemas import (
+    AIAdvisoryRequest,
+    AIAdvisoryResponse,
     AccessRequestCreateRequest,
     AccessRequestListResponse,
     AccessRequestRejectRequest,
@@ -228,6 +231,38 @@ def read_dashboard(
         action="dashboard-read",
         resource_type="dashboard",
         detail="Loaded dashboard view",
+        ip_address=_get_client_ip(request),
+    )
+    return payload
+
+
+@app.post("/api/ai/advisory", response_model=AIAdvisoryResponse)
+def read_ai_advisory(
+    body: AIAdvisoryRequest,
+    request: Request,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    prompt = body.prompt.strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt is required")
+
+    payload = generate_ai_advisory_payload(
+        db,
+        current_user,
+        active_view=body.active_view.strip() or "global",
+        prompt=prompt,
+        conversation=[
+            {"role": turn.role, "content": turn.content}
+            for turn in body.conversation
+        ],
+    )
+    record_audit_log(
+        db,
+        user=current_user,
+        action="ai-advisory-read",
+        resource_type="ai-advisory",
+        detail=f"Generated read-only AI advisory for {body.active_view.strip() or 'global'} workspace",
         ip_address=_get_client_ip(request),
     )
     return payload

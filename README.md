@@ -15,6 +15,7 @@ A starter full-stack platform for monitoring a five-zone distributed agent mesh:
 - Frontend: React + Vite
 - Backend: FastAPI + SQLAlchemy
 - Database: SQLite
+- AI: xAI Grok via the xAI API
 - Containers: Docker Compose + Kubernetes manifests
 
 ## Project Layout
@@ -55,6 +56,49 @@ docker compose up --build
 
 Frontend UI: `http://localhost:5173`
 
+## AI Configuration
+
+This app now expects xAI Grok for live AI assistance across the dashboard.
+
+- `INTEGRITY_AI_PROVIDER=xai`
+- `INTEGRITY_AI_BASE_URL=https://api.x.ai/v1`
+- `INTEGRITY_XAI_ENGINEERING_MODEL=grok-code-fast-1`
+- `INTEGRITY_XAI_RESEARCH_MODEL=grok-4-1-fast-reasoning`
+- `INTEGRITY_AI_EMBEDDING_MODEL=xai-collections`
+- `XAI_API_KEY=<your xAI API key>`
+
+Important:
+
+- The xAI team tied to the API key must have active credits or licenses.
+- Until your pgvector corpus is attached, the app keeps AI answers in read-only advisory mode.
+
+## Deploy With GitHub
+
+### Backend + Postgres on Render
+
+This repo includes `render.yaml` so Render can provision:
+
+- a Python web service for `backend/`
+- a managed PostgreSQL database
+
+After connecting the GitHub repo in Render:
+
+1. create the Blueprint from `render.yaml`
+2. set `INTEGRITY_ALLOWED_ORIGINS` to your Netlify site URL
+3. set `XAI_API_KEY` in the Render dashboard
+
+### Frontend on Netlify
+
+This repo includes `netlify.toml` with:
+
+- build base: `frontend`
+- build command: `npm run build`
+- publish directory: `dist`
+
+In Netlify, set:
+
+- `VITE_API_BASE_URL=<your Render backend URL>`
+
 ## API Endpoints
 
 - `GET /api/health`
@@ -72,6 +116,7 @@ Frontend UI: `http://localhost:5173`
 - `GET /api/audit-logs`
 - `GET /api/users`
 - `POST /api/simulation/tick`
+- `POST /api/ai/advisory`
 
 ## Demo Accounts
 
@@ -103,6 +148,18 @@ Frontend UI: `http://localhost:5173`
   Default: `5`
 - `INTEGRITY_LOGIN_RATE_LIMIT_WINDOW_SECONDS`
   Default: `300`
+- `INTEGRITY_AI_PROVIDER`
+  Default: `xai`
+- `INTEGRITY_AI_BASE_URL`
+  Default: `https://api.x.ai/v1`
+- `INTEGRITY_XAI_ENGINEERING_MODEL`
+  Default: `grok-code-fast-1`
+- `INTEGRITY_XAI_RESEARCH_MODEL`
+  Default: `grok-4-1-fast-reasoning`
+- `INTEGRITY_AI_EMBEDDING_MODEL`
+  Default: `xai-collections`
+- `XAI_API_KEY`
+- `VITE_API_BASE_URL`
 
 ## Best Approaches For A Real Sensitive-Data Deployment
 

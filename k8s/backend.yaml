@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: integrity-mesh-backend-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: integrity-mesh-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: integrity-mesh-backend
+  template:
+    metadata:
+      labels:
+        app: integrity-mesh-backend
+    spec:
+      containers:
+        - name: backend
+          image: integrity-mesh-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              value: sqlite:////data/ops_control_secure.db
+          volumeMounts:
+            - mountPath: /data
+              name: backend-data
+      volumes:
+        - name: backend-data
+          persistentVolumeClaim:
+            claimName: integrity-mesh-backend-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  selector:
+    app: integrity-mesh-backend
+  ports:
+    - port: 8000
+      targetPort: 8000

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: integrity-mesh-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: integrity-mesh-frontend
+  template:
+    metadata:
+      labels:
+        app: integrity-mesh-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: integrity-mesh-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: integrity-mesh-frontend
+spec:
+  selector:
+    app: integrity-mesh-frontend
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 80
+

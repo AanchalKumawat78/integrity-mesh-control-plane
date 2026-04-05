@@ -1,0 +1,22 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: integrity-mesh-backend
+    environment:
+      DATABASE_URL: sqlite:////app/data/ops_control_secure.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/tests:/app/tests
+      - ./backend/data:/app/data
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: integrity-mesh-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"

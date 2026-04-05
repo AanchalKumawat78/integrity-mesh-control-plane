@@ -1,0 +1,16 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+node_modules/
+dist/
+build/
+.venv/
+venv/
+backend/.venv/
+backend/venv/
+backend/.venv-mac/
+*.log
+backend/data/

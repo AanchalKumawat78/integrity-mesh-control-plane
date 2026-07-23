@@ -77,8 +77,8 @@ def generate_ai_advisory_payload(
             user_prompt=user_prompt,
         )
         parsed = _parse_ai_output(completion.text, prompt, active_view)
-        provider = completion.provider
-        model = completion.model
+        provider = "Mesh AI"
+        model = "Mesh-Core"
     except AIProviderRequestError as exc:
         parsed = _build_fallback_output(
             active_view=active_view,
@@ -88,14 +88,14 @@ def generate_ai_advisory_payload(
             access_requests=access_requests,
             simulation_run=simulation_run,
         )
-        provider = provider_status.provider
-        model = provider_status.research_model if purpose == "research" else provider_status.engineering_model
+        provider = "Mesh AI"
+        model = "Mesh-Core"
         status = "fallback"
         warning = str(exc)
 
     return {
-        "provider": provider,
-        "model": model,
+        "provider": "Mesh AI",
+        "model": "Mesh-Core",
         "status": status,
         "warning": warning,
         "title": parsed["title"],
@@ -223,7 +223,7 @@ def _build_context_documents(
                 f"Requester role {request['requester_role']}. "
                 f"Status {request['status']}. "
                 f"Requested zone {request['zone_label']}. "
-                f"Classification {request['classification']}. "
+                f"Classification {request.get('classification', 'restricted')}. "
                 f"Justification: {request['justification']}."
             ),
         }
@@ -312,7 +312,7 @@ def _score_document(document: dict, prompt_tokens: set[str], active_view: str) -
 
 def _build_system_prompt(active_view: str) -> str:
     return (
-        "You are Grok inside the Integrity Mesh Control Plane. "
+        "You are an AI assistant inside the Integrity Mesh Control Plane. "
         "Stay grounded in the provided context only. "
         "Never invent raw subject data, API side effects, approvals, revocations, or mutations. "
         "All recommendations are read-only advisory guidance. "
@@ -365,7 +365,7 @@ def _build_fallback_output(
 ) -> dict:
     citation_summary = " ".join(document["detail"] for document in citations[:3])
     answer = (
-        f"Grok is currently unavailable, so this response is grounded from the live control-plane data only. "
+        f"The AI assistant is currently unavailable, so this response is grounded from the live control-plane data only. "
         f"{citation_summary} "
         f"Pending reviews: {dashboard['security_posture']['pending_unmask_reviews']}. "
         f"Active grants: {dashboard['security_posture']['active_unmask_grants']}. "
@@ -389,7 +389,7 @@ def _default_follow_ups(active_view: str) -> list[str]:
     mapping = {
         "engineering": [
             "What should I wire into pgvector first?",
-            "What Grok guardrails should block generated actions?",
+            "What AI guardrails should block generated actions?",
             "How should Render and Netlify env vars be configured?",
         ],
         "threats": [
@@ -400,7 +400,7 @@ def _default_follow_ups(active_view: str) -> list[str]:
         "redteam": [
             "Which exploit chain has the highest blast radius?",
             "What should the drill simulate next on the map?",
-            "How would Grok summarize this scenario for leadership?",
+            "How would the AI summarize this scenario for leadership?",
         ],
         "solutions": [
             "What are the top three fixes with the biggest risk reduction?",

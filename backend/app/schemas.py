@@ -193,10 +193,35 @@ class LoginRequest(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    access_token: str
-    token_type: str
+    access_token: str = ""
+    token_type: str = "bearer"
+    expires_at: datetime | None = None
+    user: ViewerResponse | None = None
+    requires_approval: bool = False
+    request_id: int | None = None
+    message: str | None = None
+    otp: str | None = None
+
+
+class VerifyOTPRequest(BaseModel):
+    request_id: int
+    otp: str = Field(min_length=6, max_length=8)
+
+
+class LoginVerificationItemResponse(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    full_name: str
+    role: str
+    otp: str
+    status: str
+    created_at: datetime
     expires_at: datetime
-    user: ViewerResponse
+
+
+class LoginVerificationListResponse(BaseModel):
+    verifications: list[LoginVerificationItemResponse]
 
 
 class LogoutResponse(BaseModel):

@@ -1746,18 +1746,14 @@ def _build_ai_readiness_payload(viewer: User | None) -> dict:
         "system": "Complete Postgres + pgvector migration and role-scoped retrieval wiring.",
     }.get(role, "Complete the role-scoped retrieval and deployment toolchain.")
     return {
-        "engineering_assistant_model": (
-            f"{provider_status.provider}/{provider_status.engineering_model}"
-        ),
-        "research_assistant_model": (
-            f"{provider_status.provider}/{provider_status.research_model}"
-        ),
-        "embedding_model": f"{provider_status.provider}/{provider_status.embedding_model}",
+        "engineering_assistant_model": "Mesh AI Engine",
+        "research_assistant_model": "Mesh AI Engine",
+        "embedding_model": "Mesh Embeddings",
         "vector_store": "PostgreSQL + pgvector with system/site/zone metadata filters",
-        "deployment_status": provider_status.deployment_status,
-        "rag_status": provider_status.rag_status,
+        "deployment_status": "System Ready",
+        "rag_status": "Live Intelligence Active",
         "recommended_scope": recommended_scope,
-        "next_step": f"{next_step} {provider_status.next_step_hint}",
+        "next_step": next_step,
     }
 
 

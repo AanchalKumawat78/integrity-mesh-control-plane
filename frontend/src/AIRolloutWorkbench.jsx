@@ -599,7 +599,7 @@ export default function AIRolloutWorkbench({
             <span className="ai-rollout-console-label">Prompt</span>
             <strong>{queryOptions.find((query) => query.id === selectedQueryId)?.prompt}</strong>
             <span className="ai-rollout-console-label">
-              {livePreviewPending ? "Grok" : "Provider"}
+              {livePreviewPending ? "Assistant" : "Provider"}
             </span>
             {copilotResponse.provider || copilotResponse.model ? (
               <small>

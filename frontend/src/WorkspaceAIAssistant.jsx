@@ -24,7 +24,7 @@ const suggestionsByView = {
     "How should we phase mitigations by owner and urgency?",
   ],
   engineering: [
-    "What should be indexed into pgvector first for Grok grounding?",
+    "What should be indexed into pgvector first for AI grounding?",
     "What deployment guardrails should block generated actions?",
     "How should Render and Netlify env vars be configured?",
   ],
@@ -139,12 +139,12 @@ export default function WorkspaceAIAssistant({
     <section className="workspace-ai-panel">
       <div className="workspace-ai-header">
         <div>
-          <span className="eyebrow">Grok Copilot</span>
+          <span className="eyebrow">Mesh Copilot</span>
           <h3>Read-only AI guidance across the live control plane</h3>
         </div>
         <div className="workspace-ai-provider">
-          <strong>{dashboard.ai_readiness.research_assistant_model}</strong>
-          <small>{dashboard.ai_readiness.deployment_status}</small>
+          <strong>Mesh AI Engine</strong>
+          <small>System Ready</small>
         </div>
       </div>
 
@@ -169,12 +169,12 @@ export default function WorkspaceAIAssistant({
               className="workspace-ai-input"
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
-              placeholder={`Ask Grok about the ${activeView} workspace...`}
+              placeholder={`Ask mesh related questions about the ${activeView} workspace...`}
               rows={4}
             />
             <div className="workspace-ai-actions">
               <button type="submit" className="primary-button small-button" disabled={pending}>
-                {pending ? "Thinking..." : "Ask Grok"}
+                {pending ? "Thinking..." : "Ask mesh related questions"}
               </button>
               <small>Advisory only. No approvals, revocations, or data mutations.</small>
             </div>
@@ -190,13 +190,13 @@ export default function WorkspaceAIAssistant({
           <div className="workspace-ai-history">
             {history.length === 0 ? (
               <div className="empty-state">
-                <strong>No Grok prompts yet.</strong>
+                <strong>No assistant prompts yet.</strong>
                 <p>Use a quick prompt above or ask a custom question about the live workspace.</p>
               </div>
             ) : (
               history.map((item) => (
                 <div key={item.id} className={`workspace-ai-history-item role-${item.role}`}>
-                  <strong>{item.role === "assistant" ? item.title || "Grok response" : "You"}</strong>
+                  <strong>{item.role === "assistant" ? item.title || "Mesh Assistant response" : "You"}</strong>
                   <p>{item.content}</p>
                 </div>
               ))
@@ -208,7 +208,7 @@ export default function WorkspaceAIAssistant({
           <div className="panel-title-row">
             <div>
               <span className="eyebrow">Latest Analysis</span>
-              <h3>{latestResponse?.title || "Waiting for Grok analysis"}</h3>
+              <h3>{latestResponse?.title || "Waiting for Mesh analysis"}</h3>
             </div>
             <span className={`activity-count status-${latestResponse?.status || "standby"}`}>
               {latestResponse?.status || "standby"}
@@ -222,19 +222,19 @@ export default function WorkspaceAIAssistant({
 
           {latestResponse?.warning ? (
             <div className="workspace-ai-warning">
-              <strong>Provider notice</strong>
+              <strong>Notice</strong>
               <span>{latestResponse.warning}</span>
             </div>
           ) : null}
 
           <div className="workspace-ai-meta-grid">
             <div className="workspace-ai-meta-card">
-              <span>Provider</span>
-              <strong>{latestResponse?.provider || "xAI"}</strong>
+              <span>Engine</span>
+              <strong>Mesh AI</strong>
             </div>
             <div className="workspace-ai-meta-card">
-              <span>Model</span>
-              <strong>{latestResponse?.model || dashboard.ai_readiness.research_assistant_model}</strong>
+              <span>Mode</span>
+              <strong>Live Intelligence</strong>
             </div>
             <div className="workspace-ai-meta-card">
               <span>Workspace</span>

@@ -217,6 +217,19 @@ class UserSession(Base):
     user = relationship("User", back_populates="sessions")
 
 
+class LoginVerificationRequest(Base):
+    __tablename__ = "login_verification_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    otp = Column(String(8), nullable=False)
+    status = Column(String(16), default="pending", nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+    user = relationship("User")
+
+
 class SensitiveRecord(Base):
     __tablename__ = "sensitive_records"
 

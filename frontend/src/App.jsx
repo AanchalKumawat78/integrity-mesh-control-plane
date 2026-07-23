@@ -8,6 +8,7 @@ import SimulationTrackChart from "./SimulationTrackChart";
 import SolutionsView from "./SolutionsView";
 import ThreatsView from "./ThreatsView";
 import WorkspaceAIAssistant from "./WorkspaceAIAssistant";
+import UserVerificationPanel from "./UserVerificationPanel";
 
 const STORAGE_KEY = "integrity-mesh-token";
 const SIMULATION_HISTORY_KEY = "integrity-mesh-simulation-history";
@@ -1012,6 +1013,12 @@ function LoginView({
   error,
   onSubmit,
   onPreset,
+  pendingVerification,
+  setPendingVerification,
+  otpInput,
+  setOtpInput,
+  otpError,
+  onVerifyOtp,
 }) {
   const groupedAccounts = loginRoleProfiles.map((profile) => ({
     ...profile,
@@ -1068,89 +1075,114 @@ function LoginView({
           </div>
         </div>
 
-        <div className="login-panel">
-          <div className="panel-title-row">
-            <div>
-              <span className="eyebrow">Sign In</span>
-              <h3>Choose a seeded account by role</h3>
-            </div>
-          </div>
-
-          <form className="login-form" onSubmit={onSubmit}>
-            <label className="form-field">
-              <span>Username</span>
-              <input
-                className="form-input"
-                value={authForm.username}
-                onChange={(event) =>
-                  setAuthForm((current) => ({ ...current, username: event.target.value }))
-                }
-                placeholder="security"
-                autoComplete="username"
-              />
-            </label>
-
-            <label className="form-field">
-              <span>Password</span>
-              <input
-                className="form-input"
-                type="password"
-                value={authForm.password}
-                onChange={(event) =>
-                  setAuthForm((current) => ({ ...current, password: event.target.value }))
-                }
-                placeholder="shield123"
-                autoComplete="current-password"
-              />
-            </label>
-
-            {error ? <div className="login-error">{error}</div> : null}
-
-            <button className="primary-button login-button" disabled={authPending}>
-              {authPending ? "Signing in..." : "Sign In"}
-            </button>
-          </form>
-
-          <div className="credential-groups">
-            {groupedAccounts.map((group) => (
-              <div key={group.role} className="credential-group">
-                <div className="credential-group-head">
-                  <div>
-                    <span className="credential-role">{formatRoleName(group.role)}</span>
-                    <strong>{group.loginPurpose}</strong>
-                  </div>
-                  <span className="mini-badge accent">
-                    {group.role === "security_officer"
-                      ? "Approval role"
-                      : group.role === "zone_operator" || group.role === "analyst"
-                        ? "Request role"
-                        : "View role"}
-                  </span>
-                </div>
-                <p className="credential-group-copy">{group.approvalAuthority}</p>
-                <div className="credential-grid">
-                  {group.accounts.map((user) => (
-                    <button
-                      key={user.username}
-                      type="button"
-                      className="credential-card"
-                      onClick={() => onPreset(user)}
-                    >
-                      <div>
-                        <span className="credential-role">{formatRoleName(user.role)}</span>
-                        <strong>{user.label}</strong>
-                      </div>
-                      <p>{user.note}</p>
-                      <small>
-                        {user.username} / {user.password}
-                      </small>
-                    </button>
-                  ))}
-                </div>
+        {pendingVerification ? (
+          <div className="login-panel">
+            <div className="panel-title-row">
+              <div>
+                <span className="eyebrow">User Verification</span>
+                <h3>Admin Approval & OTP Verification</h3>
               </div>
-            ))}
+              <span className={`activity-count status-${pendingVerification.status === "approved" ? "live" : "standby"}`}>
+                {pendingVerification.status === "approved" ? "Admin Approved" : "Pending Admin Approval"}
+              </span>
+            </div>
+
+            <div style={{ background: "rgba(15, 23, 42, 0.6)", padding: "1rem", borderRadius: "0.5rem", border: "1px solid rgba(56, 189, 248, 0.3)", marginBottom: "1rem" }}>
+              <p style={{ color: "#e2e8f0", fontSize: "0.9rem", margin: "0 0 0.5rem 0" }}>
+                Sign-in request initiated for <strong style={{ color: "#38bdf8" }}>{pendingVerification.username}</strong>.
+              </p>
+              <div style={{ margin: "0.75rem 0", padding: "0.75rem", background: "rgba(0, 0, 0, 0.3)", borderRadius: "0.375rem", textAlign: "center", border: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                <span style={{ fontSize: "0.75rem", color: "#94a3b8", display: "block", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  GENERATED VERIFICATION OTP
+                </span>
+                <strong style={{ fontSize: "1.75rem", color: "#4ade80", letterSpacing: "0.2em", fontFamily: "monospace", display: "inline-block", marginTop: "0.25rem" }}>
+                  {pendingVerification.otp}
+                </strong>
+              </div>
+              <small style={{ color: pendingVerification.status === "approved" ? "#4ade80" : "#fbbf24", display: "block", fontSize: "0.825rem" }}>
+                {pendingVerification.status === "approved"
+                  ? "✅ Administrator approved your request! Click 'Verify OTP & Complete Sign In' to enter workspace."
+                  : "⏳ Request is awaiting Admin approval on the Admin screen..."}
+              </small>
+            </div>
+
+            <form className="login-form" onSubmit={onVerifyOtp}>
+              <label className="form-field">
+                <span>Verification OTP</span>
+                <input
+                  className="form-input"
+                  value={otpInput}
+                  onChange={(event) => setOtpInput(event.target.value)}
+                  placeholder="Enter 6-digit OTP"
+                  maxLength={6}
+                />
+              </label>
+
+              {otpError ? <div className="login-error" style={{ marginBottom: "1rem" }}>{otpError}</div> : null}
+
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <button
+                  className="primary-button login-button"
+                  type="submit"
+                  disabled={authPending || pendingVerification.status !== "approved"}
+                >
+                  {authPending ? "Verifying..." : "Verify OTP & Complete Sign In"}
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => { setPendingVerification(null); setOtpInput(""); }}
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            </form>
           </div>
-        </div>
+        ) : (
+          <div className="login-panel">
+            <div className="panel-title-row">
+              <div>
+                <span className="eyebrow">Sign In</span>
+                <h3>Sign in with your workspace account</h3>
+              </div>
+            </div>
+
+            <form className="login-form" onSubmit={onSubmit}>
+              <label className="form-field">
+                <span>Username</span>
+                <input
+                  className="form-input"
+                  value={authForm.username}
+                  onChange={(event) =>
+                    setAuthForm((current) => ({ ...current, username: event.target.value }))
+                  }
+                  placeholder="Enter username"
+                  autoComplete="username"
+                />
+              </label>
+
+              <label className="form-field">
+                <span>Password</span>
+                <input
+                  className="form-input"
+                  type="password"
+                  value={authForm.password}
+                  onChange={(event) =>
+                    setAuthForm((current) => ({ ...current, password: event.target.value }))
+                  }
+                  placeholder="Enter password"
+                  autoComplete="current-password"
+                />
+              </label>
+
+              {error ? <div className="login-error">{error}</div> : null}
+
+              <button className="primary-button login-button" disabled={authPending}>
+                {authPending ? "Signing in..." : "Sign In"}
+              </button>
+            </form>
+          </div>
+        )}
       </section>
     </main>
   );
@@ -1186,9 +1218,37 @@ export default function App() {
     attempted: false,
   });
   const [authForm, setAuthForm] = useState({
-    username: "security",
-    password: "shield123",
+    username: "",
+    password: "",
   });
+  const [pendingVerification, setPendingVerification] = useState(null);
+  const [otpInput, setOtpInput] = useState("");
+  const [otpError, setOtpError] = useState("");
+
+  useEffect(() => {
+    if (!pendingVerification || pendingVerification.status === "approved") {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await apiFetch(`/api/auth/verification-status/${pendingVerification.requestId}`, {}, "");
+        if (res.status === "approved") {
+          setPendingVerification((curr) => (curr ? { ...curr, status: "approved" } : null));
+          if (res.otp) {
+            setOtpInput(res.otp);
+          }
+        } else if (res.status === "rejected") {
+          setOtpError("Admin rejected your login request.");
+          setPendingVerification(null);
+        }
+      } catch (err) {
+        // ignore polling errors
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [pendingVerification]);
   const simulationStreamControllerRef = useRef(null);
   const simulationStreamRunIdRef = useRef("");
   const localSimulationGenerationRef = useRef(0);
@@ -1603,6 +1663,7 @@ export default function App() {
   async function handleLogin(event) {
     event.preventDefault();
     setAuthPending(true);
+    setError("");
 
     try {
       const data = await apiFetch(
@@ -1614,11 +1675,59 @@ export default function App() {
         "",
       );
 
+      if (data.requires_approval) {
+        setPendingVerification({
+          requestId: data.request_id,
+          username: authForm.username,
+          otp: data.otp,
+          status: "pending",
+          message: data.message,
+        });
+        setOtpInput(data.otp || "");
+        setError("");
+        return;
+      }
+
       window.localStorage.setItem(STORAGE_KEY, data.access_token);
       setToken(data.access_token);
       setError("");
     } catch (requestError) {
       setError(requestError.message);
+    } finally {
+      setAuthPending(false);
+    }
+  }
+
+  async function handleVerifyOtpSubmit(event) {
+    event.preventDefault();
+    if (!pendingVerification) {
+      return;
+    }
+
+    setAuthPending(true);
+    setOtpError("");
+
+    try {
+      const data = await apiFetch(
+        "/api/auth/verify-otp",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            request_id: pendingVerification.requestId,
+            otp: otpInput.trim() || pendingVerification.otp,
+          }),
+        },
+        "",
+      );
+
+      window.localStorage.setItem(STORAGE_KEY, data.access_token);
+      setToken(data.access_token);
+      setPendingVerification(null);
+      setOtpInput("");
+      setOtpError("");
+      setError("");
+    } catch (requestError) {
+      setOtpError(requestError.message);
     } finally {
       setAuthPending(false);
     }
@@ -1787,6 +1896,12 @@ export default function App() {
             password: user.password,
           })
         }
+        pendingVerification={pendingVerification}
+        setPendingVerification={setPendingVerification}
+        otpInput={otpInput}
+        setOtpInput={setOtpInput}
+        otpError={otpError}
+        onVerifyOtp={handleVerifyOtpSubmit}
       />
     );
   }
@@ -2056,6 +2171,16 @@ export default function App() {
               <span>{view.description}</span>
             </button>
           ))}
+          {dashboard.viewer.role === "admin" || dashboard.viewer.can_manage_users ? (
+            <button
+              type="button"
+              className={`workspace-tab ${activeView === "verification" ? "is-active" : ""}`}
+              onClick={() => setActiveView("verification")}
+            >
+              <strong>User Verification</strong>
+              <span>Approve OTP logins for users</span>
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -2164,6 +2289,10 @@ export default function App() {
         dashboard={dashboard}
         requestAdvice={requestAIAdvice}
       />
+
+      {activeView === "verification" ? (
+        <UserVerificationPanel apiFetch={apiFetch} />
+      ) : null}
 
       {showLandscape ? (
         <section className="landscape-grid">

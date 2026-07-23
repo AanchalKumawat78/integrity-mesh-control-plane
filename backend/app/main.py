@@ -41,6 +41,7 @@ from .schemas import (
     SensitiveRecordsResponse,
     SimulationRunResponse,
     UserListResponse,
+    VerifyOTPRequest,
     ViewerResponse,
     ZoneResponse,
 )
@@ -171,6 +172,46 @@ def login(
         )
 
     login_rate_limiter.reset(rate_limit_key)
+
+    # Non-admin users require login verification + OTP generated for admin approval
+    if user.role != "admin":
+        import random
+        from datetime import timedelta
+        from .models import LoginVerificationRequest, utcnow
+
+        otp = f"{random.randint(100000, 999999):06d}"
+        now = utcnow()
+        verification_req = LoginVerificationRequest(
+            user_id=user.id,
+            otp=otp,
+            status="pending",
+            expires_at=now + timedelta(minutes=15),
+        )
+        db.add(verification_req)
+        db.commit()
+        db.refresh(verification_req)
+
+        record_audit_log(
+            db,
+            user=user,
+            action="login_verification_requested",
+            resource_type="login_verification",
+            resource_id=str(verification_req.id),
+            detail=f"Login approval requested with OTP for username '{user.username}'",
+            ip_address=ip_address,
+        )
+
+        return {
+            "requires_approval": True,
+            "request_id": verification_req.id,
+            "otp": otp,
+            "message": "Credentials verified. Waiting for Admin approval and OTP confirmation.",
+            "access_token": "",
+            "token_type": "bearer",
+            "expires_at": None,
+            "user": None,
+        }
+
     token, session = create_user_session(db, user)
     refreshed_user = authenticate_user(db, credentials.username, credentials.password)
     record_audit_log(
@@ -184,11 +225,175 @@ def login(
     )
 
     return {
+        "requires_approval": False,
         "access_token": token,
         "token_type": "bearer",
         "expires_at": session.expires_at,
         "user": serialize_user_profile(refreshed_user),
     }
+
+
+@app.get("/api/auth/verification-status/{request_id}")
+def check_verification_status(request_id: int, db: Session = Depends(get_db)):
+    from sqlalchemy import select
+    from .models import LoginVerificationRequest
+    req = db.scalar(select(LoginVerificationRequest).where(LoginVerificationRequest.id == request_id))
+    if not req:
+        raise HTTPException(status_code=404, detail="Verification request not found")
+    return {
+        "id": req.id,
+        "status": req.status,
+        "otp": req.otp,
+        "user_id": req.user_id,
+        "username": req.user.username if req.user else None,
+    }
+
+
+@app.post("/api/auth/verify-otp", response_model=LoginResponse)
+def verify_otp(
+    data: VerifyOTPRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy import select
+    from .models import LoginVerificationRequest
+    ip_address = _get_client_ip(request)
+
+    verification_req = db.scalar(
+        select(LoginVerificationRequest).where(LoginVerificationRequest.id == data.request_id)
+    )
+    if not verification_req:
+        raise HTTPException(status_code=404, detail="Verification request not found")
+
+    if verification_req.status == "rejected":
+        raise HTTPException(status_code=403, detail="Login request was rejected by Administrator.")
+
+    if verification_req.status == "completed":
+        raise HTTPException(status_code=400, detail="This verification request has already been used.")
+
+    if verification_req.status != "approved":
+        raise HTTPException(status_code=400, detail="Admin approval is pending. Please wait for Administrator to approve.")
+
+    if verification_req.otp != data.otp.strip():
+        raise HTTPException(status_code=400, detail="Invalid OTP. Please check the OTP on the Admin screen.")
+
+    verification_req.status = "completed"
+    user = verification_req.user
+    token, session = create_user_session(db, user)
+    db.commit()
+
+    record_audit_log(
+        db,
+        user=user,
+        action="login_verification_completed",
+        resource_type="session",
+        resource_id=str(session.id),
+        detail=f"OTP verified and login completed for user '{user.username}'",
+        ip_address=ip_address,
+    )
+
+    return {
+        "requires_approval": False,
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_at": session.expires_at,
+        "user": serialize_user_profile(user),
+    }
+
+
+@app.get("/api/admin/login-verifications")
+def list_login_verifications(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "admin" and not user_can_manage_users(current_user):
+        raise HTTPException(status_code=403, detail="Only admins can access user verifications")
+
+    from sqlalchemy import select
+    from .models import LoginVerificationRequest
+    requests = list(
+        db.scalars(
+            select(LoginVerificationRequest)
+            .order_by(LoginVerificationRequest.created_at.desc())
+            .limit(50)
+        )
+    )
+    return {
+        "verifications": [
+            {
+                "id": req.id,
+                "user_id": req.user_id,
+                "username": req.user.username,
+                "full_name": req.user.full_name,
+                "role": req.user.role,
+                "otp": req.otp,
+                "status": req.status,
+                "created_at": req.created_at,
+                "expires_at": req.expires_at,
+            }
+            for req in requests
+        ]
+    }
+
+
+@app.post("/api/admin/login-verifications/{request_id}/approve")
+def approve_login_verification(
+    request_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "admin" and not user_can_manage_users(current_user):
+        raise HTTPException(status_code=403, detail="Only admins can approve login verification requests")
+
+    from sqlalchemy import select
+    from .models import LoginVerificationRequest
+    req = db.scalar(select(LoginVerificationRequest).where(LoginVerificationRequest.id == request_id))
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    req.status = "approved"
+    db.commit()
+
+    record_audit_log(
+        db,
+        user=current_user,
+        action="login_verification_approved",
+        resource_type="login_verification",
+        resource_id=str(req.id),
+        detail=f"Admin approved login request for '{req.user.username}' with OTP {req.otp}",
+    )
+
+    return {"id": req.id, "status": "approved", "otp": req.otp}
+
+
+@app.post("/api/admin/login-verifications/{request_id}/reject")
+def reject_login_verification(
+    request_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "admin" and not user_can_manage_users(current_user):
+        raise HTTPException(status_code=403, detail="Only admins can reject login verification requests")
+
+    from sqlalchemy import select
+    from .models import LoginVerificationRequest
+    req = db.scalar(select(LoginVerificationRequest).where(LoginVerificationRequest.id == request_id))
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    req.status = "rejected"
+    db.commit()
+
+    record_audit_log(
+        db,
+        user=current_user,
+        action="login_verification_rejected",
+        resource_type="login_verification",
+        resource_id=str(req.id),
+        detail=f"Admin rejected login request for '{req.user.username}'",
+    )
+
+    return {"id": req.id, "status": "rejected"}
 
 
 @app.post("/api/auth/logout", response_model=LogoutResponse)

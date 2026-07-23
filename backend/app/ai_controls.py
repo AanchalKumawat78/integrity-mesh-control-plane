@@ -614,4 +614,3 @@ def _extract_openai_chat_response_text(payload: dict) -> str:
             if isinstance(content, str):
                 return content
     return ""
-

@@ -16,4 +16,4 @@ backend/.venv-mac/
 backend/data/
 .env
 backend/.env
-
+frontend/.netlify/

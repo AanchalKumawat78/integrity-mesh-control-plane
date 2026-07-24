@@ -544,9 +544,8 @@ def _build_groq_provider_status() -> AIProviderStatus:
 GROQ_MODEL_FALLBACKS = [
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
-    "groq/compound",
-    "groq/compound-mini",
 ]
+VALID_GROQ_CHAT_MODELS = {"llama-3.3-70b-versatile", "llama-3.1-8b-instant"}
 
 
 def _generate_groq_completion(
@@ -611,15 +610,15 @@ def _generate_groq_completion(
 
 
 def _resolve_groq_model(purpose: str) -> str:
-    if purpose == "engineering":
-        return os.getenv(
-            "INTEGRITY_GROQ_ENGINEERING_MODEL",
-            DEFAULT_GROQ_ENGINEERING_MODEL,
-        ).strip() or DEFAULT_GROQ_ENGINEERING_MODEL
-    return os.getenv(
-        "INTEGRITY_GROQ_RESEARCH_MODEL",
-        DEFAULT_GROQ_RESEARCH_MODEL,
-    ).strip() or DEFAULT_GROQ_RESEARCH_MODEL
+    env_var_name = (
+        "INTEGRITY_GROQ_ENGINEERING_MODEL"
+        if purpose == "engineering"
+        else "INTEGRITY_GROQ_RESEARCH_MODEL"
+    )
+    candidate = os.getenv(env_var_name, "").strip()
+    if candidate in VALID_GROQ_CHAT_MODELS:
+        return candidate
+    return DEFAULT_GROQ_ENGINEERING_MODEL
 
 
 def _extract_openai_chat_response_text(payload: dict) -> str:

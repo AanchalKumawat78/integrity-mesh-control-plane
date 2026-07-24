@@ -15,16 +15,14 @@ services:
       - key: INTEGRITY_ALLOWED_ORIGINS
         value: "*"
       - key: INTEGRITY_AI_PROVIDER
-        value: xai
+        value: groq
       - key: INTEGRITY_AI_BASE_URL
-        value: https://api.x.ai/v1
-      - key: INTEGRITY_XAI_ENGINEERING_MODEL
-        value: grok-code-fast-1
-      - key: INTEGRITY_XAI_RESEARCH_MODEL
-        value: grok-4-1-fast-reasoning
-      - key: INTEGRITY_AI_EMBEDDING_MODEL
-        value: xai-collections
-      - key: XAI_API_KEY
+        value: https://api.groq.com/openai/v1
+      - key: INTEGRITY_GROQ_ENGINEERING_MODEL
+        value: llama-3.3-70b-versatile
+      - key: INTEGRITY_GROQ_RESEARCH_MODEL
+        value: llama-3.3-70b-versatile
+      - key: GROQ_API_KEY
         sync: false
 databases:
   - name: integrity-mesh-db

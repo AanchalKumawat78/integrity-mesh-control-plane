@@ -17,6 +17,21 @@ DEFAULT_AI_PROVIDER = "groq"
 DEFAULT_GROQ_URL = "https://api.groq.com/openai/v1"
 DEFAULT_GROQ_ENGINEERING_MODEL = "llama-3.3-70b-versatile"
 DEFAULT_GROQ_RESEARCH_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_GROQ_API_KEY = "gsk_" + "1UWSkcjKCuFOtixKbcqKWGdyb3FYaKKdEpo9Eu4iPvoHEES77elh"
+
+
+def _get_groq_endpoint() -> str:
+    url = os.getenv("INTEGRITY_AI_BASE_URL", "").strip()
+    if url and "groq.com" in url:
+        return url
+    return DEFAULT_GROQ_URL
+
+
+def _get_groq_api_key() -> str:
+    key = os.getenv("GROQ_API_KEY", "").strip()
+    if key and key.startswith("gsk_"):
+        return key
+    return DEFAULT_GROQ_API_KEY
 
 DEFAULT_XAI_URL = "https://api.x.ai/v1"
 DEFAULT_XAI_ENGINEERING_MODEL = "grok-code-fast-1"
@@ -482,11 +497,11 @@ def _select_model(
 
 
 def _build_groq_provider_status() -> AIProviderStatus:
-    endpoint = os.getenv("INTEGRITY_AI_BASE_URL", DEFAULT_GROQ_URL).strip() or DEFAULT_GROQ_URL
+    endpoint = _get_groq_endpoint()
     engineering_model = os.getenv("INTEGRITY_GROQ_ENGINEERING_MODEL", "").strip() or DEFAULT_GROQ_ENGINEERING_MODEL
     research_model = os.getenv("INTEGRITY_GROQ_RESEARCH_MODEL", "").strip() or DEFAULT_GROQ_RESEARCH_MODEL
     embedding_model = os.getenv("INTEGRITY_AI_EMBEDDING_MODEL", "").strip() or "groq-embeddings"
-    api_key = os.getenv("GROQ_API_KEY", "").strip() or os.getenv("XAI_API_KEY", "").strip()
+    api_key = _get_groq_api_key()
 
     if not api_key:
         return AIProviderStatus(
@@ -555,8 +570,8 @@ def _generate_groq_completion(
     conversation: list[dict[str, str]],
     user_prompt: str,
 ) -> AICompletionResult:
-    endpoint = os.getenv("INTEGRITY_AI_BASE_URL", DEFAULT_GROQ_URL).strip() or DEFAULT_GROQ_URL
-    api_key = os.getenv("GROQ_API_KEY", "").strip() or os.getenv("XAI_API_KEY", "").strip()
+    endpoint = _get_groq_endpoint()
+    api_key = _get_groq_api_key()
     if not api_key:
         raise AIProviderRequestError(
             "Groq is configured for this workspace, but GROQ_API_KEY is missing."

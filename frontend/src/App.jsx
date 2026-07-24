@@ -15,7 +15,7 @@ const SIMULATION_HISTORY_KEY = "integrity-mesh-simulation-history";
 const MIN_REQUEST_JUSTIFICATION_LENGTH = 24;
 const MIN_REVIEW_NOTE_LENGTH = 12;
 const LIVE_SIMULATION_API_ENABLED = false;
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "https://integrity-mesh-api.onrender.com").replace(/\/$/, "");
 
 const summaryCards = [
   {

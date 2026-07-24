@@ -541,6 +541,14 @@ def _build_groq_provider_status() -> AIProviderStatus:
     )
 
 
+GROQ_MODEL_FALLBACKS = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "groq/compound",
+    "groq/compound-mini",
+]
+
+
 def _generate_groq_completion(
     *,
     purpose: str,
@@ -555,7 +563,12 @@ def _generate_groq_completion(
             "Groq is configured for this workspace, but GROQ_API_KEY is missing."
         )
 
-    model = _resolve_groq_model(purpose)
+    requested_model = _resolve_groq_model(purpose)
+    candidate_models = [requested_model]
+    for model_name in GROQ_MODEL_FALLBACKS:
+        if model_name not in candidate_models:
+            candidate_models.append(model_name)
+
     input_messages = [{"role": "system", "content": system_prompt}]
     input_messages.extend(
         {
@@ -567,30 +580,34 @@ def _generate_groq_completion(
     )
     input_messages.append({"role": "user", "content": user_prompt})
 
-    payload = {
-        "model": model,
-        "messages": input_messages,
-        "temperature": 0.2,
-        "max_tokens": 900,
-    }
+    last_error = None
+    for model in candidate_models:
+        payload = {
+            "model": model,
+            "messages": input_messages,
+            "temperature": 0.2,
+            "max_tokens": 900,
+        }
+        try:
+            response = _request_json(
+                f"{endpoint.rstrip('/')}/chat/completions",
+                method="POST",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "Mozilla/5.0",
+                },
+                data=json.dumps(payload).encode("utf-8"),
+                timeout=60.0,
+            )
+            text = _extract_openai_chat_response_text(response)
+            if text.strip():
+                return AICompletionResult(provider="groq", model=model, text=text.strip())
+        except AIProviderRequestError as exc:
+            last_error = exc
+            continue
 
-    response = _request_json(
-        f"{endpoint.rstrip('/')}/chat/completions",
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0",
-        },
-        data=json.dumps(payload).encode("utf-8"),
-        timeout=60.0,
-    )
-
-    text = _extract_openai_chat_response_text(response)
-    if not text.strip():
-        raise AIProviderRequestError("Groq returned an empty response.")
-
-    return AICompletionResult(provider="groq", model=model, text=text.strip())
+    raise last_error or AIProviderRequestError("Groq returned an empty response.")
 
 
 def _resolve_groq_model(purpose: str) -> str:

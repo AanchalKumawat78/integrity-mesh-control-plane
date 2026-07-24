@@ -98,15 +98,25 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=security_settings.allowed_origins,
+    allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
+    if request.method == "OPTIONS":
+        from fastapi.responses import Response
+        origin = request.headers.get("origin", "*") or "*"
+        response = Response(status_code=204)
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Max-Age"] = "86400"
+        return response
+
     response = await call_next(request)
     for header, value in security_settings.security_headers.items():
         response.headers.setdefault(header, value)

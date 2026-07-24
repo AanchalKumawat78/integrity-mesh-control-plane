@@ -244,7 +244,14 @@ function formatCoordinate(value) {
 }
 
 function buildApiUrl(path) {
-  return API_BASE_URL ? `${API_BASE_URL}${path}` : path;
+  const baseUrl =
+    API_BASE_URL ||
+    (typeof window !== "undefined" &&
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1"
+      ? "https://integrity-mesh-api.onrender.com"
+      : "");
+  return baseUrl ? `${baseUrl}${path}` : path;
 }
 
 function loadStoredSimulationHistory() {
